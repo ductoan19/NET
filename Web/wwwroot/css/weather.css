@@ -1,0 +1,24 @@
+﻿.red {
+    color: red;
+}
+
+.mg5{
+    margin: 5px;
+}
+
+.forecast {
+    max-height: 400px;
+    overflow-y: scroll;
+}
+
+.day{
+    border: 2px solid white;
+}
+
+.main-temp {
+    font-size: 6rem;
+    line-height: 8rem;
+}
+.lh-3rm{
+    line-height: 3rem;
+}
