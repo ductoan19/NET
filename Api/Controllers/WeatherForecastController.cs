@@ -9,6 +9,9 @@ using Microsoft.Extensions.Configuration;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Dynamic;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 
 
@@ -40,7 +43,7 @@ namespace Api.Controllers
         [HttpPost("Current")]
         public async Task<IActionResult> Current([FromForm] CurrentRequest request)
         {
-            if (!ModelState.IsValid) return BadRequest("Request parameter not valid");
+            if (!ModelState.IsValid) return BadRequest("Invalid request parameter");
             string Uri = BaseRequestUri(request, RequestMethod.Current);
 
 
@@ -49,8 +52,10 @@ namespace Api.Controllers
             {
                 HttpResponseMessage res = await _http.GetAsync(Uri);
                 var resultString = await res.Content.ReadAsStringAsync();
-                //WeatherVm result = JsonSerializer.Deserialize<WeatherVm>(resultString);
-                var result = JsonSerializer.Deserialize<object>(resultString);
+                var jsonSettings = new JsonSerializerSettings();
+                jsonSettings.Converters.Add(new ExpandoObjectConverter());
+                jsonSettings.Converters.Add(new StringEnumConverter());
+                dynamic result = JsonConvert.DeserializeObject<ExpandoObject>(resultString, jsonSettings);
                 return Ok(result);
             }
             catch (Exception ex) { return BadRequest(ex.Message); }
@@ -66,7 +71,7 @@ namespace Api.Controllers
         [HttpPost("Forecast")]
         public async Task<IActionResult> Forecast([FromForm] ForecastRequest request)
         {
-            if (!ModelState.IsValid) return BadRequest("Request parameter not valid");
+            if (!ModelState.IsValid) return BadRequest("Invalid request parameter");
             string Uri = BaseRequestUri(request, RequestMethod.Forecast);
             if (request.Days != null) Uri += "&days=" + request.Days.ToString();
             if (request.Date != null) Uri += "&dt=" + request.Date.Value.ToString("yyyy-MM-dd");
@@ -75,10 +80,32 @@ namespace Api.Controllers
 
             try
             {
+                //Call 3rd-party API
                 HttpResponseMessage res = await _http.GetAsync(Uri);
                 var resultString = await res.Content.ReadAsStringAsync();
-                //WeatherVm result = JsonSerializer.Deserialize<WeatherVm>(resultString);
-                var result = JsonSerializer.Deserialize<object>(resultString);
+
+
+
+                //Deserialize json
+                var jsonSettings = new JsonSerializerSettings();
+                jsonSettings.Converters.Add(new ExpandoObjectConverter());
+                jsonSettings.Converters.Add(new StringEnumConverter());
+                dynamic result = JsonConvert.DeserializeObject<ExpandoObject>(resultString, jsonSettings);
+
+
+
+                //Add average temperature for forecast days
+                //Add to result.forecast.avgtemp_c (temporarily not using F degree)
+                List<double> avgTemp = new List<double>();
+                foreach (dynamic d in result.forecast.forecastday)
+                {
+                    double temp = d.day.avgtemp_c;
+                    avgTemp.Add(temp);
+                }
+                result.forecast.avgtemp_c = Math.Round(avgTemp.Average(), 1);
+
+
+
                 return Ok(result);
             }
             catch (Exception ex) { return BadRequest(ex.Message); }
@@ -94,7 +121,7 @@ namespace Api.Controllers
         [HttpPost("OnDate")]
         public async Task<IActionResult> OnDate([FromForm] OnDateRequest request)
         {
-            if (!ModelState.IsValid) return BadRequest("Request parameter not valid");
+            if (!ModelState.IsValid) return BadRequest("Invalid request parameter");
 
 
 
@@ -108,12 +135,17 @@ namespace Api.Controllers
 
             try
             {
+                //Call 3rd-party API
                 HttpResponseMessage res = await _http.GetAsync(Uri);
                 var resultString = await res.Content.ReadAsStringAsync();
-                //WeatherVm result = JsonSerializer.Deserialize<WeatherVm>(resultString);
-                dynamic result = JsonSerializer.Deserialize<object>(resultString);
 
 
+
+                //Deserialize json
+                var jsonSettings = new JsonSerializerSettings();
+                jsonSettings.Converters.Add(new ExpandoObjectConverter());
+                jsonSettings.Converters.Add(new StringEnumConverter());
+                dynamic result = JsonConvert.DeserializeObject<ExpandoObject>(resultString, jsonSettings);
 
                 return Ok(result);
             }
